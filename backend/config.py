@@ -54,15 +54,23 @@ class AppConfig:
         )
         self.research_timeout: int = int(os.getenv("RESEARCH_TIMEOUT", "300"))
 
-        # Tool configuration (for future use)
+        # Tool configuration
         self.available_tools: List[str] = self._parse_tools(
-            os.getenv("AVAILABLE_TOOLS", "web_search,code_analysis,document_search")
+            os.getenv("AVAILABLE_TOOLS", "web_search,file_write,weather")
         )
 
-        # LLM configuration (for future use)
-        self.llm_model: str = os.getenv("LLM_MODEL", "gpt-4")
+        # LLM configuration
+        self.llm_model: str = os.getenv("LLM_MODEL", "gpt-4-1106-preview")
         self.llm_temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
         self.llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+
+        # OpenAI configuration
+        self.openai_api_key: Optional[str] = os.getenv("API_KEY")  # Use existing API_KEY
+        self.openai_base_url: Optional[str] = os.getenv("OPENAI_BASE_URL")
+
+        # File operations configuration
+        self.file_output_dir: str = os.getenv("FILE_OUTPUT_DIR", "/tmp/research_agent")
+        self.max_file_size: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
 
         # Database configuration (for future use)
         self.database_url: Optional[str] = os.getenv("DATABASE_URL")
@@ -132,7 +140,8 @@ class AppConfig:
             "model": self.llm_model,
             "temperature": self.llm_temperature,
             "max_tokens": self.llm_max_tokens,
-            "api_key": self.api_key,
+            "api_key": self.openai_api_key,
+            "base_url": self.openai_base_url,
         }
 
     def get_rate_limit_config(self) -> dict:
@@ -189,6 +198,9 @@ class AppConfig:
 
         if self.llm_max_tokens < 1:
             raise ValueError(f"Invalid LLM max tokens: {self.llm_max_tokens}")
+
+        if not self.openai_api_key:
+            raise ValueError("OpenAI API key is required (set API_KEY in .env file)")
 
     def __str__(self) -> str:
         """

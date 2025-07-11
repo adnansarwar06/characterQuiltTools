@@ -418,8 +418,8 @@ class ToolRegistry:
             latitude = location["latitude"]
             longitude = location["longitude"]
             
-            # Get weather data
-            weather_url = "https://api.open-meteo.com/v1/current"
+            # Get weather data using correct Open-Meteo API endpoint
+            weather_url = "https://api.open-meteo.com/v1/forecast"
             weather_params = {
                 "latitude": latitude,
                 "longitude": longitude,
