@@ -1,26 +1,25 @@
-# Deep Research Agent - Production-Ready Backend
+# AI Research Agent Backend
 
-A modular, production-ready deep research agent system built with FastAPI, featuring dynamic tool execution, streaming responses, and clean architecture.
+A production-ready backend system for AI research with deep research capabilities, multi-tool integration, and streaming responses.
 
 ## 🏗️ Architecture
 
-The system is built with clean separation of concerns:
-
-- **`llm.py`** - Core agent loop, LLM client, and streaming logic
-- **`tools.py`** - Tool registry and execution system
-- **`config.py`** - Configuration management
-- **`app.py`** - FastAPI application and API endpoints
-- **`test_agent.py`** - Test suite and development utilities
+```
+Backend System
+├── llm.py          # Core agent logic and LLM integration
+├── tools.py        # Tool registry and execution engine
+├── config.py       # Configuration management
+├── app.py          # FastAPI application and endpoints
+└── run.py          # Application entry point
+```
 
 ## 🚀 Features
 
-- **Production-Ready**: Type annotations, logging, error handling, and documentation
-- **Modular Design**: Clean separation between LLM, tools, and API layers
-- **Streaming Support**: Real-time response streaming with tool execution updates
-- **Dynamic Tool Loading**: Tools are loaded dynamically from the registry
-- **Configuration Management**: Environment-based configuration with validation
-- **Multi-Provider Support**: Extensible LLM client (OpenAI, with examples for others)
-- **Comprehensive Testing**: Full test suite with interactive mode
+- **Deep Research Mode**: Multi-step research with iterative analysis
+- **Tool Integration**: Web search, file operations, weather data
+- **Streaming API**: Real-time response generation
+- **Flexible Configuration**: Environment-based settings
+- **Production Ready**: Comprehensive error handling and logging
 
 ## 📦 Installation
 
@@ -32,224 +31,327 @@ The system is built with clean separation of concerns:
 2. **Configure Environment**:
    ```bash
    cp environment.env.example environment.env
-   # Edit environment.env and add your API_KEY
+   # Edit environment.env and add your OpenAI API key
    ```
 
-3. **Run the Application**:
+3. **Start the Server**:
    ```bash
    python run.py
    ```
 
 ## 🔧 Configuration
 
-Edit `environment.env` to configure the system:
-
+### Required Settings (`environment.env`)
 ```env
-# Required
+# OpenAI API Configuration
 API_KEY=your_openai_api_key_here
 
-# Optional
+# Optional Settings
 LLM_MODEL=gpt-4-1106-preview
 LLM_TEMPERATURE=0.7
 MAX_RESEARCH_ITERATIONS=10
 AVAILABLE_TOOLS=web_search,file_write,weather
+APP_HOST=localhost
+APP_PORT=8000
 ```
 
-## 🧪 Testing
+### Configuration Options
+- **API_KEY**: OpenAI API key (required)
+- **LLM_MODEL**: OpenAI model to use
+- **LLM_TEMPERATURE**: Response creativity (0.0-2.0)
+- **MAX_RESEARCH_ITERATIONS**: Maximum research steps
+- **AVAILABLE_TOOLS**: Comma-separated list of enabled tools
 
-### Run All Tests:
-```bash
-python test_agent.py
+## 🛠️ Available Tools
+
+### Web Search
+- **Function**: Real-time web research
+- **Provider**: DuckDuckGo (no API key required)
+- **Usage**: Automatic for research queries
+
+### File Operations
+- **Function**: Create, read, write files
+- **Security**: Restricted to safe directories
+- **Formats**: Text, JSON, CSV, Markdown
+
+### Weather Data
+- **Function**: Current weather information
+- **Coverage**: Global weather data
+- **Details**: Temperature, conditions, humidity
+
+## 🔌 API Endpoints
+
+### Chat Endpoints
+```
+POST /chat
+- Main chat endpoint with streaming support
+- Request body: ChatRequest
+- Response: Streaming text/plain
+
+POST /chat/stream
+- Server-sent events streaming
+- Request body: ChatRequest
+- Response: text/event-stream
 ```
 
-### Interactive Testing:
-```bash
-python test_agent.py interactive
+### System Endpoints
+```
+GET /health
+- System health check
+- Response: {"status": "healthy", "timestamp": "..."}
+
+GET /tools
+- List available tools
+- Response: {"tools": [...]}
+
+GET /config
+- System configuration (non-sensitive)
+- Response: {"config": {...}}
 ```
 
-### Test Individual Components:
-```python
-from config import AppConfig
-from tools import get_tool_registry
-from llm import deep_research_agent
-
-# Your test code here
-```
-
-## 🛠️ Usage
-
-### API Endpoints
-
-- **POST `/chat`** - Main chat endpoint with streaming
-- **GET `/health`** - Health check
-- **GET `/tools`** - List available tools
-- **GET `/config`** - Get configuration (non-sensitive)
-
-### Chat Request Format:
+### Request Format
 ```json
 {
   "messages": [
-    {"role": "user", "content": "What's the weather like in Paris?"}
+    {"role": "user", "content": "Your research question"}
   ],
-  "tools": ["weather", "web_search"],
+  "tools": ["web_search", "file_write"],
   "deep_research_mode": true
 }
 ```
 
-### Programmatic Usage:
+## 🎯 Usage Examples
+
+### Deep Research Mode
 ```python
-from llm import deep_research_agent
-from config import AppConfig
-from tools import get_tool_registry
+import requests
 
-config = AppConfig()
-tool_registry = get_tool_registry(config)
-
-messages = [{"role": "user", "content": "Research AI trends"}]
-
-async for chunk in deep_research_agent(
-    messages=messages,
-    enabled_tools=["web_search"],
-    deep_research_mode=True,
-    config=config,
-    tool_registry=tool_registry
-):
-    print(chunk, end="", flush=True)
+response = requests.post("http://localhost:8000/chat", json={
+    "messages": [
+        {"role": "user", "content": "Research AI trends in 2024"}
+    ],
+    "tools": ["web_search", "file_write"],
+    "deep_research_mode": True
+})
 ```
 
-## 🔌 Available Tools
+### Quick Chat Mode
+```python
+response = requests.post("http://localhost:8000/chat", json={
+    "messages": [
+        {"role": "user", "content": "What's the weather in Paris?"}
+    ],
+    "tools": ["weather"],
+    "deep_research_mode": False
+})
+```
 
-- **`web_search`** - Search the web using DuckDuckGo
-- **`file_write`** - Write content to files
-- **`weather`** - Get weather information
+### Streaming Chat
+```python
+import requests
 
-## 🧩 Extending the System
+response = requests.post(
+    "http://localhost:8000/chat/stream",
+    json={
+        "messages": [{"role": "user", "content": "Research question"}],
+        "tools": ["web_search"],
+        "deep_research_mode": True
+    },
+    stream=True
+)
 
-### Adding New Tools:
+for chunk in response.iter_content(chunk_size=None):
+    if chunk:
+        print(chunk.decode(), end="", flush=True)
+```
 
-1. **Register the Tool** in `tools.py`:
+## 🔧 Tool Extension
+
+### Adding Custom Tools
+
+1. **Define Tool Function** (`tools.py`):
    ```python
    def my_custom_tool(self, param1: str, param2: int) -> ToolResult:
-       # Implementation
-       return ToolResult(success=True, data=result)
-   
-   # In _register_builtin_tools():
-   self.register_tool("my_tool", self.my_custom_tool, schema)
+       """Custom tool description"""
+       try:
+           # Your tool implementation
+           result = perform_operation(param1, param2)
+           return ToolResult(success=True, data=result)
+       except Exception as e:
+           return ToolResult(success=False, error=str(e))
    ```
 
-2. **Add to Configuration**:
+2. **Register Tool**:
+   ```python
+   def _register_builtin_tools(self):
+       # ... existing tools ...
+       
+       self.register_tool(
+           "my_custom_tool",
+           self.my_custom_tool,
+           {
+               "type": "function",
+               "function": {
+                   "name": "my_custom_tool",
+                   "description": "Description of your tool",
+                   "parameters": {
+                       "type": "object",
+                       "properties": {
+                           "param1": {"type": "string"},
+                           "param2": {"type": "integer"}
+                       },
+                       "required": ["param1", "param2"]
+                   }
+               }
+           }
+       )
+   ```
+
+3. **Enable Tool**:
    ```env
-   AVAILABLE_TOOLS=web_search,file_write,weather,my_tool
+   AVAILABLE_TOOLS=web_search,file_write,weather,my_custom_tool
    ```
-
-### Adding New LLM Providers:
-
-The system is designed to support multiple LLM providers. Examples:
-
-```python
-# Ollama Integration
-from ollama import AsyncClient
-
-class OllamaLLMClient(LLMClient):
-    def __init__(self, config):
-        self.client = AsyncClient(host=config.ollama_host)
-    
-    async def create_chat_completion(self, **kwargs):
-        # Implementation for Ollama
-        pass
-
-# Anthropic Integration
-from anthropic import AsyncAnthropic
-
-class AnthropicLLMClient(LLMClient):
-    def __init__(self, config):
-        self.client = AsyncAnthropic(api_key=config.anthropic_api_key)
-```
-
-## 🏃‍♂️ Development
-
-### Code Quality:
-- All code is formatted with `black`
-- Type hints throughout
-- Comprehensive docstrings
-- Error handling and logging
-
-### Running Development Server:
-```bash
-python run.py
-```
-
-### Running Tests:
-```bash
-python test_agent.py
-```
 
 ## 🚀 Production Deployment
 
-### Using Uvicorn:
+### Using Uvicorn
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn app:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-### Using Gunicorn:
+### Using Gunicorn
 ```bash
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app --bind 0.0.0.0:8000
 ```
 
-### Docker:
+### Docker Deployment
 ```dockerfile
 FROM python:3.11-slim
+
 WORKDIR /app
+
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
+
+EXPOSE 8000
+
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### Environment Variables for Production
+```env
+# Production settings
+API_KEY=your_production_api_key
+APP_HOST=0.0.0.0
+APP_PORT=8000
+LOG_LEVEL=INFO
+
+# Performance settings
+MAX_RESEARCH_ITERATIONS=15
+LLM_MAX_TOKENS=4096
+REQUEST_TIMEOUT=300
 ```
 
 ## 🔐 Security
 
-- API keys loaded from environment variables
-- Input validation on all endpoints
-- Rate limiting ready (configured in environment)
-- File operations restricted to safe directories
+### API Security
+- **Environment Variables**: All sensitive data externalized
+- **Input Validation**: Comprehensive request validation
+- **Error Handling**: Secure error messages
+- **Rate Limiting**: Configurable request limits
 
-## 📚 API Documentation
+### Tool Security
+- **File Operations**: Restricted to safe directories
+- **Input Sanitization**: All parameters validated
+- **Dangerous Extensions**: Blocked file types (.exe, .bat, etc.)
 
-Start the server and visit:
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
+## 📊 Performance
 
-## 🐛 Troubleshooting
+### Optimization Features
+- **Async Operations**: Non-blocking tool execution
+- **Streaming**: Real-time response generation
+- **Connection Pooling**: Efficient HTTP client usage
+- **Memory Management**: Proper resource cleanup
 
-### Common Issues:
+### Performance Monitoring
+- **Request Timing**: Built-in performance logging
+- **Error Tracking**: Comprehensive error logging
+- **Health Checks**: System status monitoring
 
-1. **Missing API Key**:
+## 🔍 Monitoring & Debugging
+
+### Logging
+```python
+import logging
+
+# Configure logging level
+logging.basicConfig(level=logging.INFO)
+
+# View logs
+tail -f app.log
+```
+
+### Health Monitoring
+```bash
+# Check system health
+curl http://localhost:8000/health
+
+# Check available tools
+curl http://localhost:8000/tools
+
+# Check configuration
+curl http://localhost:8000/config
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **API Key Error**:
    ```
    ValueError: OpenAI API key is required
    ```
-   Solution: Set `API_KEY` in `environment.env`
+   **Solution**: Set `API_KEY` in `environment.env`
 
-2. **Import Errors**:
-   ```
-   ModuleNotFoundError: No module named 'openai'
-   ```
-   Solution: `pip install -r requirements.txt`
-
-3. **Port Already in Use**:
+2. **Port Already in Use**:
    ```
    Error: Port 8000 is already in use
    ```
-   Solution: Change `APP_PORT` in `environment.env`
+   **Solution**: Change `APP_PORT` in `environment.env`
 
-## 🤝 Contributing
+3. **Tool Import Error**:
+   ```
+   ImportError: Tool 'web_search' not found
+   ```
+   **Solution**: Check `AVAILABLE_TOOLS` configuration
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `python test_agent.py`
-5. Format code: `python -m black .`
-6. Submit a pull request
+4. **Memory Issues**:
+   ```
+   Out of memory during research
+   ```
+   **Solution**: Reduce `MAX_RESEARCH_ITERATIONS`
+
+## 📚 API Documentation
+
+Once the server is running, access:
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+
+## 🤝 Integration
+
+### Frontend Integration
+The backend is designed to work with the React frontend:
+- **CORS**: Configured for frontend domain
+- **WebSocket**: Real-time communication support
+- **Streaming**: Compatible with frontend streaming hooks
+
+### Third-party Integration
+- **Webhook Support**: Add webhooks for external integrations
+- **API Keys**: Support for multiple API key management
+- **Custom Headers**: Configurable request headers
 
 ## 📄 License
 
-This project is licensed under the MIT License. 
+MIT License - see LICENSE file for details. 

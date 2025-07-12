@@ -42,9 +42,9 @@ async def test_simple_chat():
     try:
         config = AppConfig()
         tool_registry = get_tool_registry(config)
-        
+
         messages = [{"role": "user", "content": "Hello! Just say 'Hi' back."}]
-        
+
         print("🤖 Agent Response:")
         response = ""
         async for chunk in deep_research_agent(
@@ -52,14 +52,14 @@ async def test_simple_chat():
             enabled_tools=[],
             deep_research_mode=False,
             config=config,
-            tool_registry=tool_registry
+            tool_registry=tool_registry,
         ):
             print(chunk, end="", flush=True)
             response += chunk
-        
+
         print("\n✅ Simple chat test completed")
         return len(response) > 0
-        
+
     except Exception as e:
         print(f"❌ Simple chat failed: {e}")
         return False
@@ -70,10 +70,12 @@ async def test_web_search():
     try:
         config = AppConfig()
         tool_registry = get_tool_registry(config)
-        
+
         # Test web search directly
-        result = await tool_registry.execute_tool("web_search", query="Python programming", num_results=3)
-        
+        result = await tool_registry.execute_tool(
+            "web_search", query="Python programming", num_results=3
+        )
+
         if result.success:
             print("✅ Web search tool working")
             print(f"   Found {len(result.data)} results")
@@ -81,7 +83,7 @@ async def test_web_search():
         else:
             print(f"❌ Web search failed: {result.error}")
             return False
-            
+
     except Exception as e:
         print(f"❌ Web search test failed: {e}")
         return False
@@ -92,14 +94,12 @@ async def test_file_write():
     try:
         config = AppConfig()
         tool_registry = get_tool_registry(config)
-        
+
         # Test file write directly
         result = await tool_registry.execute_tool(
-            "file_write", 
-            filename="test.txt", 
-            content="Hello, this is a test file!"
+            "file_write", filename="test.txt", content="Hello, this is a test file!"
         )
-        
+
         if result.success:
             print("✅ File write tool working")
             print(f"   File: {result.data['file_path']}")
@@ -107,7 +107,7 @@ async def test_file_write():
         else:
             print(f"❌ File write failed: {result.error}")
             return False
-            
+
     except Exception as e:
         print(f"❌ File write test failed: {e}")
         return False
@@ -118,10 +118,10 @@ async def test_weather():
     try:
         config = AppConfig()
         tool_registry = get_tool_registry(config)
-        
+
         # Test weather directly
         result = await tool_registry.execute_tool("weather", city="London")
-        
+
         if result.success:
             print("✅ Weather tool working")
             print(f"   Location: {result.data['location']['city']}")
@@ -130,7 +130,7 @@ async def test_weather():
         else:
             print(f"❌ Weather failed: {result.error}")
             return False
-            
+
     except Exception as e:
         print(f"❌ Weather test failed: {e}")
         return False
@@ -140,16 +140,16 @@ async def main():
     """Run all component tests."""
     print("🧪 Running Component Tests")
     print("=" * 40)
-    
+
     tests = [
         ("Configuration", test_config),
         ("Tool Registry", test_tools),
         ("Simple Chat", test_simple_chat),
         ("Web Search", test_web_search),
         ("File Write", test_file_write),
-        ("Weather", test_weather)
+        ("Weather", test_weather),
     ]
-    
+
     results = []
     for name, test_func in tests:
         print(f"\n📋 Testing {name}...")
@@ -159,21 +159,21 @@ async def main():
         except Exception as e:
             print(f"❌ {name} test crashed: {e}")
             results.append((name, False))
-    
+
     # Summary
     print("\n" + "=" * 40)
     print("📊 TEST SUMMARY")
     print("=" * 40)
-    
+
     passed = 0
     for name, success in results:
         status = "✅ PASS" if success else "❌ FAIL"
         print(f"{name}: {status}")
         if success:
             passed += 1
-    
+
     print(f"\nPassed: {passed}/{len(results)}")
-    
+
     if passed == len(results):
         print("🎉 All tests passed!")
     else:
@@ -181,4 +181,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

@@ -1,231 +1,309 @@
-# Research Agent Chat UI
+# AI Research Agent
 
-A professional React-based chat interface prototype for deep research agent interactions. This UI provides a modern, accessible chat experience with support for tool call visualization and real-time communication.
+A powerful AI research assistant with deep research capabilities, multi-tool integration, and a professional chat interface. This system combines advanced language models with real-time tool execution for comprehensive research tasks.
 
-## Features
+## 🚀 Features
 
-- **Professional Chat Interface**: Clean, modern design with distinct user and agent message bubbles
-- **Tool Call Indicators**: Visual indicators showing when the agent is using tools (Web Search, Code Analysis, etc.)
-- **Real-time Communication**: WebSocket support for live chat interactions
-- **Accessibility First**: Full ARIA support, keyboard navigation, and screen reader compatibility
-- **Responsive Design**: Works seamlessly across desktop, tablet, and mobile devices
-- **Configuration-Driven**: All settings loaded from environment variables or config files
-- **TypeScript Support**: Full type safety throughout the application
-- **Professional Code Quality**: JSDoc comments, proper error handling, and modular architecture
+### Core Capabilities
+- **Deep Research Mode**: Multi-step research with iterative analysis and tool usage
+- **Multi-Tool Integration**: Web search, file operations, weather data, and more
+- **Real-time Streaming**: Live response generation with cancellation support
+- **Professional UI**: Modern, accessible React interface with tool visualization
+- **Flexible Architecture**: Modular backend with extensible tool system
 
-## Prerequisites
+### Research Modes
+- **Deep Research**: Complex multi-step investigations with tool chaining
+- **Quick Chat**: Direct answers with optional single-tool usage
+- **Tool-Free Mode**: LLM-only responses using internal knowledge
 
-- Node.js (v16 or higher)
-- npm or yarn package manager
+### Built-in Tools
+- **Web Search**: Real-time web research using DuckDuckGo
+- **File Operations**: Create, read, and write files for research output
+- **Weather Data**: Current weather information for any location
+- **Extensible**: Easy to add custom tools for specific research needs
 
-## Installation
+## 🏗️ Architecture
 
-1. Clone the repository or extract the project files
-2. Install dependencies:
+```
+Frontend (React + TypeScript)
+├── Professional chat interface
+├── Tool call visualization
+├── Real-time streaming
+└── Configuration management
 
-```bash
-npm install
+Backend (Python + FastAPI)
+├── Deep research agent
+├── Tool execution engine
+├── Streaming API
+└── Configuration system
 ```
 
-## Configuration
+## 📦 Installation
 
-### Environment Variables
+### Prerequisites
+- **Node.js** (v16 or higher)
+- **Python** (3.8 or higher)
+- **OpenAI API Key** (required for LLM functionality)
 
-Create a `.env` file in the project root with the following variables:
+### Quick Start
 
+1. **Clone and Setup**:
+   ```bash
+   git clone <repository-url>
+   cd ai-research-agent
+   npm install
+   ```
+
+2. **Configure Backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   cp environment.env.example environment.env
+   # Edit environment.env and add your OpenAI API key
+   ```
+
+3. **Start the System**:
+   ```bash
+   # Terminal 1: Start backend
+   cd backend
+   python run.py
+
+   # Terminal 2: Start frontend
+   npm start
+   ```
+
+4. **Access the Interface**:
+   - Frontend: `http://localhost:3000`
+   - API Documentation: `http://localhost:8000/docs`
+
+## 🔧 Configuration
+
+### Backend Configuration (`backend/environment.env`)
 ```env
-REACT_APP_API_BASE_URL=http://localhost:8000/api
+# Required
+API_KEY=your_openai_api_key_here
+
+# Optional
+LLM_MODEL=gpt-4-1106-preview
+LLM_TEMPERATURE=0.7
+MAX_RESEARCH_ITERATIONS=10
+AVAILABLE_TOOLS=web_search,file_write,weather
+APP_HOST=localhost
+APP_PORT=8000
+```
+
+### Frontend Configuration (`.env`)
+```env
+REACT_APP_API_BASE_URL=http://localhost:8000
 REACT_APP_WEBSOCKET_URL=ws://localhost:8000/ws
-REACT_APP_AGENT_NAME=Research Agent
-REACT_APP_TOOLS_WEB_SEARCH=Web Search
-REACT_APP_TOOLS_CODE_ANALYSIS=Code Analysis
-REACT_APP_TOOLS_FILE_READER=File Reader
-REACT_APP_TOOLS_DOCUMENT_SEARCH=Document Search
 ```
 
-### Configuration File
+## 🎯 Usage
 
-Alternatively, you can modify the configuration in `src/config/config.ts`:
+### Deep Research Mode
+Perfect for complex investigations requiring multiple tools and analysis steps:
 
-```typescript
-export const config: AppConfig = {
-  apiBaseUrl: 'http://localhost:8000/api',
-  websocketUrl: 'ws://localhost:8000/ws',
-  agentName: 'Research Agent',
-  tools: {
-    webSearch: 'Web Search',
-    codeAnalysis: 'Code Analysis',
-    fileReader: 'File Reader',
-    documentSearch: 'Document Search',
-  },
-};
+```
+"Research the latest developments in AI coding assistants and their 
+integration with IDEs in 2024. Create a comprehensive analysis document 
+that includes current market trends, technical implementations, and code 
+examples. Save your findings to a detailed report file."
 ```
 
-## Usage
+### Quick Chat Mode
+For direct questions with optional tool usage:
 
-### Development
+```
+"What's the current weather in Paris?"
+"Search for recent news about renewable energy"
+```
 
-Start the development server:
+### Tool Configuration
+- **Enable/Disable Tools**: Use the tool selector in the UI
+- **Deep Research Toggle**: Switch between modes as needed
+- **Real-time Control**: Change settings during conversation
 
+## 🛠️ Available Tools
+
+### Web Search
+- **Purpose**: Real-time web research and information gathering
+- **Provider**: DuckDuckGo (no API key required)
+- **Usage**: Automatic activation for research queries
+
+### File Operations
+- **Purpose**: Save research findings, create reports, manage documents
+- **Features**: Create, read, write files with safety checks
+- **Security**: Restricted to safe directories and file types
+
+### Weather Data
+- **Purpose**: Current weather information for any location
+- **Features**: Temperature, conditions, humidity, wind speed
+- **Coverage**: Global weather data
+
+## 🔌 API Endpoints
+
+### Chat API
+- **POST** `/chat` - Main chat endpoint with streaming support
+- **POST** `/chat/stream` - Server-sent events streaming
+
+### System API
+- **GET** `/health` - System health check
+- **GET** `/tools` - List available tools
+- **GET** `/config` - System configuration (non-sensitive)
+
+### Example Request
+```json
+{
+  "messages": [
+    {"role": "user", "content": "Research AI trends in 2024"}
+  ],
+  "tools": ["web_search", "file_write"],
+  "deep_research_mode": true
+}
+```
+
+## 🎨 User Interface
+
+### Chat Interface
+- **Professional Design**: Clean, modern chat bubbles
+- **Tool Visualization**: Real-time tool execution indicators
+- **Streaming Support**: Live response generation
+- **Cancellation**: Stop button for long-running operations
+
+### Tool Controls
+- **Tool Selector**: Enable/disable specific tools
+- **Deep Research Toggle**: Switch between research modes
+- **Settings Panel**: Configure system behavior
+- **Status Indicators**: Real-time system status
+
+### Accessibility
+- **Keyboard Navigation**: Full keyboard support
+- **Screen Reader Support**: Comprehensive ARIA labels
+- **High Contrast**: Automatic support for accessibility preferences
+- **Focus Management**: Proper focus handling throughout
+
+## 🔧 Extending the System
+
+### Adding New Tools
+
+1. **Register Tool** (`backend/tools.py`):
+   ```python
+   def my_custom_tool(self, param1: str, param2: int) -> ToolResult:
+       # Your tool implementation
+       return ToolResult(success=True, data=result)
+   ```
+
+2. **Add Configuration**:
+   ```env
+   AVAILABLE_TOOLS=web_search,file_write,weather,my_custom_tool
+   ```
+
+3. **Update Frontend** (optional):
+   Add tool-specific UI components if needed
+
+### Custom LLM Providers
+The system supports multiple LLM providers:
+- **OpenAI** (default)
+- **Anthropic** (with modifications)
+- **Local models** (Ollama, etc.)
+
+## 🚀 Production Deployment
+
+### Backend Deployment
 ```bash
-npm start
+# Using Uvicorn
+uvicorn app:app --host 0.0.0.0 --port 8000
+
+# Using Gunicorn
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app
 ```
 
-The application will be available at `http://localhost:3000`.
-
-### Production Build
-
-Create a production build:
-
+### Frontend Deployment
 ```bash
 npm run build
+# Deploy build/ directory to your web server
 ```
 
-The built files will be in the `build` directory.
+### Docker Deployment
+```dockerfile
+# Backend
+FROM python:3.11-slim
+WORKDIR /app
+COPY backend/requirements.txt .
+RUN pip install -r requirements.txt
+COPY backend/ .
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 
-### Code Formatting
-
-Format code using Prettier:
-
-```bash
-npm run format
+# Frontend
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+CMD ["npx", "serve", "-s", "build"]
 ```
 
-## Project Structure
+## 🔐 Security
 
-```
-src/
-├── components/
-│   ├── Chat.tsx              # Main chat component
-│   └── ToolIndicator.tsx     # Tool call indicator component
-├── hooks/
-│   └── useChat.ts            # Chat state management hook
-├── utils/
-│   └── api.ts                # API utility functions
-├── config/
-│   └── config.ts             # Configuration management
-├── types/
-│   └── chat.ts               # TypeScript type definitions
-├── styles/
-│   └── global.css            # Global styles
-└── index.tsx                 # Application entry point
-```
+### API Security
+- **Environment Variables**: All sensitive data in environment files
+- **Input Validation**: Comprehensive request validation
+- **Rate Limiting**: Configurable request limits
+- **CORS**: Proper cross-origin resource sharing
 
-## Component Overview
+### Tool Security
+- **File Operations**: Restricted to safe directories
+- **Input Sanitization**: All tool inputs are validated
+- **Error Handling**: Secure error messages without data leaks
 
-### Chat Component (`src/components/Chat.tsx`)
+## 📊 Performance
 
-The main chat interface component that handles:
-- Message display with user/agent distinction
-- User input and message sending
-- Tool call visualization
-- Real-time updates
-- Accessibility features
+### Backend Performance
+- **Streaming**: Real-time response generation
+- **Async Operations**: Non-blocking tool execution
+- **Connection Pooling**: Efficient resource management
+- **Caching**: Configurable response caching
 
-### ToolIndicator Component (`src/components/ToolIndicator.tsx`)
+### Frontend Performance
+- **React Optimization**: Proper memoization and state management
+- **Bundle Size**: Optimized build with code splitting
+- **Lazy Loading**: Dynamic component loading
+- **Responsive Design**: Efficient rendering across devices
 
-Displays tool call status with:
-- Visual icons for different states (pending, executing, completed, failed)
-- Loading animations
-- Error handling
-- Accessibility labels
+## 🔍 Monitoring & Debugging
 
-### useChat Hook (`src/hooks/useChat.ts`)
+### Logging
+- **Comprehensive Logs**: Detailed system logging
+- **Log Levels**: Configurable logging verbosity
+- **Error Tracking**: Structured error logging
+- **Performance Metrics**: Request timing and usage stats
 
-Custom React hook managing:
-- Chat state (messages, loading, connection)
-- Message sending and receiving
-- Tool call updates
-- Connection status simulation
+### Health Checks
+- **System Health**: `/health` endpoint monitoring
+- **Tool Status**: Individual tool health checks
+- **Configuration**: System configuration validation
 
-## API Integration
+## 📱 Browser Support
 
-The application is designed to work with a backend API. For the prototype, it uses simulated responses. To integrate with a real backend:
+- **Chrome** (latest)
+- **Firefox** (latest)
+- **Safari** (latest)
+- **Edge** (latest)
+- **Mobile browsers** (iOS Safari, Chrome Mobile)
 
-1. Update the API client in `src/utils/api.ts`
-2. Replace `simulateSendMessage` with actual API calls
-3. Implement WebSocket connections for real-time updates
+## 🤝 Support
 
-## Accessibility Features
+For issues, questions, or contributions:
+1. Check the API documentation at `/docs`
+2. Review the configuration files
+3. Check logs for error messages
+4. Ensure all environment variables are set
 
-- **Keyboard Navigation**: Full keyboard support for all interactive elements
-- **Screen Reader Support**: ARIA labels, roles, and live regions
-- **High Contrast Mode**: Automatic support for high contrast display preferences
-- **Reduced Motion**: Respects user preferences for reduced motion
-- **Focus Management**: Proper focus handling and visible focus indicators
+## 📄 License
 
-## Browser Support
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+---
 
-## Development Guidelines
-
-### Code Style
-
-- Use TypeScript for all new code
-- Follow the existing naming conventions
-- Add JSDoc comments for all functions and components
-- Use semantic HTML elements
-- Implement proper error handling
-
-### Testing
-
-Run tests with:
-
-```bash
-npm test
-```
-
-### Linting
-
-The project uses ESLint and TypeScript compiler for code quality:
-
-```bash
-npm run lint
-```
-
-## Customization
-
-### Styling
-
-Modify `src/styles/global.css` to customize the appearance:
-- Colors and themes
-- Typography
-- Layout and spacing
-- Animations and transitions
-
-### Tool Integration
-
-Add new tools by:
-1. Updating the configuration in `src/config/config.ts`
-2. Adding new tool types to `src/types/chat.ts`
-3. Implementing tool-specific logic in `src/hooks/useChat.ts`
-
-## Performance Considerations
-
-- Uses React.memo for component optimization
-- Implements proper cleanup in useEffect hooks
-- Uses CSS animations for smooth interactions
-- Lazy loading for large message histories
-
-## Security
-
-- Input sanitization for user messages
-- XSS prevention through proper React rendering
-- CSRF protection for API calls
-- Environment variable validation
-
-## Contributing
-
-1. Follow the existing code style and patterns
-2. Add proper TypeScript types for new features
-3. Include JSDoc comments for all public functions
-4. Test accessibility features
-5. Update documentation for new features
-
-## License
-
-This project is licensed under the MIT License. 
+**Built with**: React, TypeScript, Python, FastAPI, OpenAI API 

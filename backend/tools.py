@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import aiofiles
 import requests
@@ -31,6 +31,18 @@ class ToolResult:
     data: Any
     error: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+class ToolValidationError(Exception):
+    """Exception raised when tool validation fails."""
+
+    pass
+
+
+class ToolExecutionError(Exception):
+    """Exception raised when tool execution fails."""
+
+    pass
 
 
 class ToolRegistry:
@@ -62,10 +74,87 @@ class ToolRegistry:
             name: Tool name identifier.
             func: Tool function to execute.
             schema: OpenAI function schema for the tool.
+
+        Raises:
+            ToolValidationError: If tool registration fails validation.
         """
+        if not name or not isinstance(name, str):
+            raise ToolValidationError(
+                f"Tool name must be a non-empty string, got: {name}"
+            )
+
+        if not callable(func):
+            raise ToolValidationError(
+                f"Tool function must be callable, got: {type(func)}"
+            )
+
+        if not isinstance(schema, dict):
+            raise ToolValidationError(
+                f"Tool schema must be a dictionary, got: {type(schema)}"
+            )
+
+        # Validate schema structure
+        self._validate_tool_schema(name, schema)
+
         self.tools[name] = func
         self.tool_schemas[name] = schema
         logger.info(f"Registered tool: {name}")
+
+    def _validate_tool_schema(self, name: str, schema: Dict[str, Any]) -> None:
+        """
+        Validate tool schema structure.
+
+        Args:
+            name: Tool name.
+            schema: Tool schema to validate.
+
+        Raises:
+            ToolValidationError: If schema validation fails.
+        """
+        required_keys = ["type", "function"]
+        for key in required_keys:
+            if key not in schema:
+                raise ToolValidationError(
+                    f"Tool '{name}' schema missing required key: {key}"
+                )
+
+        if schema["type"] != "function":
+            raise ToolValidationError(
+                f"Tool '{name}' schema type must be 'function', got: {schema['type']}"
+            )
+
+        function_schema = schema["function"]
+        if not isinstance(function_schema, dict):
+            raise ToolValidationError(
+                f"Tool '{name}' function schema must be a dictionary"
+            )
+
+        function_required_keys = ["name", "description", "parameters"]
+        for key in function_required_keys:
+            if key not in function_schema:
+                raise ToolValidationError(
+                    f"Tool '{name}' function schema missing required key: {key}"
+                )
+
+        if function_schema["name"] != name:
+            raise ToolValidationError(
+                f"Tool '{name}' function name must match tool name, got: {function_schema['name']}"
+            )
+
+        # Validate parameters schema
+        params = function_schema["parameters"]
+        if not isinstance(params, dict):
+            raise ToolValidationError(f"Tool '{name}' parameters must be a dictionary")
+
+        if params.get("type") != "object":
+            raise ToolValidationError(
+                f"Tool '{name}' parameters type must be 'object', got: {params.get('type')}"
+            )
+
+        if "properties" not in params:
+            raise ToolValidationError(
+                f"Tool '{name}' parameters missing 'properties' key"
+            )
 
     def get_tool_schemas(self, enabled_tools: List[str]) -> List[Dict[str, Any]]:
         """
@@ -76,14 +165,84 @@ class ToolRegistry:
 
         Returns:
             List[Dict[str, Any]]: OpenAI function schemas.
+
+        Raises:
+            ToolValidationError: If tool validation fails.
         """
+        if not isinstance(enabled_tools, list):
+            raise ToolValidationError(
+                f"enabled_tools must be a list, got: {type(enabled_tools)}"
+            )
+
         schemas = []
         for tool_name in enabled_tools:
+            if not isinstance(tool_name, str):
+                logger.warning(f"Skipping non-string tool name: {tool_name}")
+                continue
+
             if tool_name in self.tool_schemas:
                 schemas.append(self.tool_schemas[tool_name])
             else:
                 logger.warning(f"Tool not found: {tool_name}")
+
         return schemas
+
+    def _validate_tool_arguments(self, tool_name: str, **kwargs: Any) -> None:
+        """
+        Validate tool arguments against schema.
+
+        Args:
+            tool_name: Name of the tool.
+            **kwargs: Tool arguments to validate.
+
+        Raises:
+            ToolValidationError: If argument validation fails.
+        """
+        if tool_name not in self.tool_schemas:
+            raise ToolValidationError(f"Tool '{tool_name}' not found in registry")
+
+        schema = self.tool_schemas[tool_name]
+        function_schema = schema["function"]
+        params_schema = function_schema["parameters"]
+
+        # Check required parameters
+        required_params = params_schema.get("required", [])
+        for param in required_params:
+            if param not in kwargs:
+                raise ToolValidationError(
+                    f"Tool '{tool_name}' missing required parameter: {param}"
+                )
+
+        # Check parameter types
+        properties = params_schema.get("properties", {})
+        for param_name, param_value in kwargs.items():
+            if param_name not in properties:
+                logger.warning(
+                    f"Tool '{tool_name}' received unexpected parameter: {param_name}"
+                )
+                continue
+
+            param_schema = properties[param_name]
+            expected_type = param_schema.get("type")
+
+            if expected_type == "string" and not isinstance(param_value, str):
+                raise ToolValidationError(
+                    f"Tool '{tool_name}' parameter '{param_name}' must be string, got: {type(param_value)}"
+                )
+            elif expected_type == "integer" and not isinstance(param_value, int):
+                raise ToolValidationError(
+                    f"Tool '{tool_name}' parameter '{param_name}' must be integer, got: {type(param_value)}"
+                )
+            elif expected_type == "boolean" and not isinstance(param_value, bool):
+                raise ToolValidationError(
+                    f"Tool '{tool_name}' parameter '{param_name}' must be boolean, got: {type(param_value)}"
+                )
+            elif expected_type == "number" and not isinstance(
+                param_value, (int, float)
+            ):
+                raise ToolValidationError(
+                    f"Tool '{tool_name}' parameter '{param_name}' must be number, got: {type(param_value)}"
+                )
 
     async def execute_tool(self, tool_name: str, **kwargs: Any) -> ToolResult:
         """
@@ -96,27 +255,77 @@ class ToolRegistry:
         Returns:
             ToolResult: Execution result.
         """
+        if not tool_name or not isinstance(tool_name, str):
+            return ToolResult(
+                success=False,
+                data=None,
+                error=f"Tool name must be a non-empty string, got: {tool_name}",
+            )
+
         if tool_name not in self.tools:
             return ToolResult(
-                success=False, data=None, error=f"Tool '{tool_name}' not found"
+                success=False,
+                data=None,
+                error=f"Tool '{tool_name}' not found in registry",
             )
 
         try:
+            # Validate arguments
+            self._validate_tool_arguments(tool_name, **kwargs)
+
             logger.info(f"Executing tool: {tool_name} with args: {kwargs}")
+
+            # Execute the tool
             result = await self.tools[tool_name](**kwargs)
+
+            # Validate result
+            if not isinstance(result, ToolResult):
+                logger.error(
+                    f"Tool '{tool_name}' returned invalid result type: {type(result)}"
+                )
+                return ToolResult(
+                    success=False,
+                    data=None,
+                    error=f"Tool returned invalid result type: {type(result)}",
+                )
+
+            # Log execution result
+            if result.success:
+                logger.info(f"Tool '{tool_name}' executed successfully")
+            else:
+                logger.warning(f"Tool '{tool_name}' failed: {result.error}")
+
             return result
+
+        except ToolValidationError as e:
+            logger.error(f"Tool '{tool_name}' validation error: {str(e)}")
+            return ToolResult(
+                success=False, data=None, error=f"Validation error: {str(e)}"
+            )
+        except ToolExecutionError as e:
+            logger.error(f"Tool '{tool_name}' execution error: {str(e)}")
+            return ToolResult(
+                success=False, data=None, error=f"Execution error: {str(e)}"
+            )
         except Exception as e:
-            logger.error(f"Tool execution error for {tool_name}: {str(e)}")
-            return ToolResult(success=False, data=None, error=str(e))
+            logger.error(
+                f"Tool '{tool_name}' unexpected error: {str(e)}", exc_info=True
+            )
+            return ToolResult(
+                success=False, data=None, error=f"Unexpected error: {str(e)}"
+            )
 
     def _register_tools(self) -> None:
         """Register all tools from the TOOLS registry."""
         for tool_name, tool_config in TOOLS.items():
-            self.register_tool(
-                name=tool_name,
-                func=getattr(self, tool_config["function"]),
-                schema=tool_config["schema"],
-            )
+            try:
+                self.register_tool(
+                    name=tool_name,
+                    func=getattr(self, tool_config["function"]),
+                    schema=tool_config["schema"],
+                )
+            except Exception as e:
+                logger.error(f"Failed to register tool '{tool_name}': {str(e)}")
 
     async def _web_search(self, query: str, num_results: int = 5) -> ToolResult:
         """
@@ -130,6 +339,20 @@ class ToolRegistry:
             ToolResult: Search results.
         """
         try:
+            # Validate inputs
+            if not query or not isinstance(query, str):
+                raise ToolValidationError("Query must be a non-empty string")
+
+            if not isinstance(num_results, int) or num_results < 1:
+                raise ToolValidationError("num_results must be a positive integer")
+
+            if num_results > 10:
+                num_results = 10  # Cap at 10 results
+
+            query = query.strip()
+            if len(query) > 500:
+                raise ToolValidationError("Query must be 500 characters or less")
+
             # Use DuckDuckGo Instant Answer API for free web search
             ddg_url = self.config.duckduckgo_api_url
 
@@ -141,6 +364,8 @@ class ToolRegistry:
                 "no_html": "1",
                 "skip_disambig": "1",
             }
+
+            logger.debug(f"Making DuckDuckGo API request for query: {query}")
 
             response = requests.get(ddg_url, params=ddg_params, timeout=30)
             response.raise_for_status()
@@ -184,6 +409,7 @@ class ToolRegistry:
                 }
 
                 try:
+                    logger.debug(f"Attempting fallback web search for query: {query}")
                     search_response = requests.get(
                         search_url, params=search_params, headers=headers, timeout=30
                     )
@@ -233,16 +459,12 @@ class ToolRegistry:
                 metadata={"query": query, "timestamp": datetime.now().isoformat()},
             )
 
+        except ToolValidationError:
+            raise
         except requests.exceptions.RequestException as e:
-            return ToolResult(
-                success=False, data=None, error=f"Web search failed: {str(e)}"
-            )
+            raise ToolExecutionError(f"Web search API request failed: {str(e)}")
         except Exception as e:
-            return ToolResult(
-                success=False,
-                data=None,
-                error=f"Unexpected error during web search: {str(e)}",
-            )
+            raise ToolExecutionError(f"Unexpected error during web search: {str(e)}")
 
     async def _file_write(
         self, filename: str, content: str, append: bool = False
@@ -259,10 +481,41 @@ class ToolRegistry:
             ToolResult: File write result.
         """
         try:
+            # Validate inputs
+            if not filename or not isinstance(filename, str):
+                raise ToolValidationError("Filename must be a non-empty string")
+
+            if not isinstance(content, str):
+                raise ToolValidationError("Content must be a string")
+
+            if not isinstance(append, bool):
+                raise ToolValidationError("Append must be a boolean")
+
             # Ensure safe filename (no path traversal)
             safe_filename = os.path.basename(filename)
             if not safe_filename or safe_filename.startswith("."):
-                return ToolResult(success=False, data=None, error="Invalid filename")
+                raise ToolValidationError(
+                    "Invalid filename: must not be empty or start with '.'"
+                )
+
+            # Check for dangerous file extensions
+            dangerous_extensions = [
+                ".exe",
+                ".bat",
+                ".cmd",
+                ".sh",
+                ".ps1",
+                ".scr",
+                ".dll",
+            ]
+            if any(safe_filename.lower().endswith(ext) for ext in dangerous_extensions):
+                raise ToolValidationError(
+                    f"File extension not allowed for security reasons: {safe_filename}"
+                )
+
+            # Check filename length
+            if len(safe_filename) > 255:
+                raise ToolValidationError("Filename too long (max 255 characters)")
 
             # Create output directory if it doesn't exist
             output_dir = Path(self.config.file_output_dir)
@@ -271,11 +524,10 @@ class ToolRegistry:
             file_path = output_dir / safe_filename
 
             # Check file size limit
-            if len(content.encode("utf-8")) > self.config.max_file_size:
-                return ToolResult(
-                    success=False,
-                    data=None,
-                    error=f"Content size exceeds limit ({self.config.max_file_size} bytes)",
+            content_bytes = content.encode("utf-8")
+            if len(content_bytes) > self.config.max_file_size:
+                raise ToolValidationError(
+                    f"Content size ({len(content_bytes)} bytes) exceeds limit ({self.config.max_file_size} bytes)"
                 )
 
             # Write file
@@ -283,11 +535,13 @@ class ToolRegistry:
             async with aiofiles.open(file_path, mode, encoding="utf-8") as f:
                 await f.write(content)
 
+            logger.info(f"Successfully wrote {len(content_bytes)} bytes to {file_path}")
+
             return ToolResult(
                 success=True,
                 data={
                     "file_path": str(file_path),
-                    "size": len(content.encode("utf-8")),
+                    "size": len(content_bytes),
                     "mode": "appended" if append else "written",
                 },
                 metadata={
@@ -296,10 +550,10 @@ class ToolRegistry:
                 },
             )
 
+        except ToolValidationError:
+            raise
         except Exception as e:
-            return ToolResult(
-                success=False, data=None, error=f"File write failed: {str(e)}"
-            )
+            raise ToolExecutionError(f"File write operation failed: {str(e)}")
 
     async def _weather(self, city: str, country: str = "") -> ToolResult:
         """
@@ -313,6 +567,22 @@ class ToolRegistry:
             ToolResult: Weather information.
         """
         try:
+            # Validate inputs
+            if not city or not isinstance(city, str):
+                raise ToolValidationError("City must be a non-empty string")
+
+            if not isinstance(country, str):
+                raise ToolValidationError("Country must be a string")
+
+            city = city.strip()
+            country = country.strip()
+
+            if len(city) > 100:
+                raise ToolValidationError("City name too long (max 100 characters)")
+
+            if len(country) > 50:
+                raise ToolValidationError("Country name too long (max 50 characters)")
+
             # First, get coordinates for the city using geocoding
             location_query = f"{city}, {country}" if country else city
             geocoding_url = self.config.openmeteo_geocoding_url
@@ -324,16 +594,17 @@ class ToolRegistry:
                 "format": "json",
             }
 
+            logger.debug(f"Making geocoding request for: {location_query}")
+
             geo_response = requests.get(
                 geocoding_url, params=geocoding_params, timeout=30
             )
             geo_response.raise_for_status()
+
             geo_data = geo_response.json()
 
             if not geo_data.get("results"):
-                return ToolResult(
-                    success=False, data=None, error=f"City not found: {location_query}"
-                )
+                raise ToolExecutionError(f"City not found: {location_query}")
 
             location = geo_data["results"][0]
             latitude = location["latitude"]
@@ -346,6 +617,10 @@ class ToolRegistry:
                 "longitude": longitude,
                 "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m",
             }
+
+            logger.debug(
+                f"Making weather request for coordinates: {latitude}, {longitude}"
+            )
 
             weather_response = requests.get(
                 weather_url, params=weather_params, timeout=30
@@ -406,6 +681,8 @@ class ToolRegistry:
                 },
             }
 
+            logger.info(f"Successfully retrieved weather data for {city}")
+
             return ToolResult(
                 success=True,
                 data=result_data,
@@ -415,15 +692,13 @@ class ToolRegistry:
                 },
             )
 
+        except ToolValidationError:
+            raise
         except requests.exceptions.RequestException as e:
-            return ToolResult(
-                success=False, data=None, error=f"Weather API failed: {str(e)}"
-            )
+            raise ToolExecutionError(f"Weather API request failed: {str(e)}")
         except Exception as e:
-            return ToolResult(
-                success=False,
-                data=None,
-                error=f"Unexpected error during weather lookup: {str(e)}",
+            raise ToolExecutionError(
+                f"Unexpected error during weather lookup: {str(e)}"
             )
 
 

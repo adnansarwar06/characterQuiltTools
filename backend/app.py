@@ -80,11 +80,14 @@ def create_app() -> FastAPI:
     )
 
     @app.post("/chat")
-    async def chat_endpoint(request_data: Dict[str, Any]) -> StreamingResponse:
+    async def chat_endpoint(
+        request: Request, request_data: Dict[str, Any]
+    ) -> StreamingResponse:
         """
         Chat endpoint that handles both simple chat and deep research mode.
 
         Args:
+            request: FastAPI request object to check for client disconnection.
             request_data: Request data containing messages, tools, and mode.
 
         Returns:
@@ -173,11 +176,20 @@ def create_app() -> FastAPI:
                         deep_research_mode=deep_research_mode,
                         config=config,
                         tool_registry=tool_registry,
+                        request=request,  # Pass request for cancellation checking
                     ):
+                        # Check if client has disconnected before yielding chunk
+                        if await request.is_disconnected():
+                            logger.info(
+                                "Client disconnected, stopping response generation"
+                            )
+                            break
                         yield chunk
                 except Exception as e:
                     logger.error(f"Error in chat generation: {str(e)}")
-                    yield f"\n\n❌ **Error:** {str(e)}"
+                    # Only yield error if client is still connected
+                    if not await request.is_disconnected():
+                        yield f"\n\n❌ **Error:** {str(e)}"
 
             return StreamingResponse(
                 generate_response(),
@@ -253,19 +265,43 @@ def create_app() -> FastAPI:
     @app.get("/config")
     async def get_config() -> Dict[str, Any]:
         """
-        Get current configuration (excluding sensitive data).
+        Get application configuration for the frontend.
 
         Returns:
-            Dict[str, Any]: Configuration details.
+            Dict[str, Any]: Configuration data including API key and model settings.
         """
-        return {
-            "model": config.llm_model,
-            "max_tokens": config.llm_max_tokens,
-            "temperature": config.llm_temperature,
-            "max_iterations": config.max_research_iterations,
-            "available_tools": config.available_tools,
-            "debug_mode": config.debug_mode,
-        }
+        try:
+            return {
+                "status": "ok",
+                "config": {
+                    "api_key": config.api_key,
+                    "model": config.llm_model,
+                    "temperature": config.llm_temperature,
+                    "max_tokens": config.llm_max_tokens,
+                    "available_tools": list(tool_registry.tool_schemas.keys()),
+                },
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Error getting config: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to get configuration")
+
+    @app.get("/api-key")
+    async def get_api_key() -> Dict[str, str]:
+        """
+        Get OpenAI API key for frontend direct streaming.
+
+        Returns:
+            Dict[str, str]: API key for OpenAI.
+        """
+        try:
+            return {
+                "api_key": config.api_key,
+                "model": config.llm_model,
+            }
+        except Exception as e:
+            logger.error(f"Error getting API key: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to get API key")
 
     @app.exception_handler(Exception)
     async def global_exception_handler(
