@@ -54,9 +54,7 @@ class ToolRegistry:
         # Register all tools from the TOOLS registry
         self._register_tools()
 
-    def register_tool(
-        self, name: str, func: Callable, schema: Dict[str, Any]
-    ) -> None:
+    def register_tool(self, name: str, func: Callable, schema: Dict[str, Any]) -> None:
         """
         Register a tool with the registry.
 
@@ -207,7 +205,7 @@ class ToolRegistry:
                         results.append(
                             {
                                 "title": title.strip(),
-                                "url": f"https://duckduckgo.com/?q={query}",
+                                "url": f"{self.config.duckduckgo_search_url}?q={query}",
                                 "snippet": snippet.strip(),
                                 "source": "DuckDuckGo Search",
                                 "type": "web_search",
@@ -222,7 +220,7 @@ class ToolRegistry:
                 results = [
                     {
                         "title": f"Search Results for: {query}",
-                        "url": f"https://duckduckgo.com/?q={query}",
+                        "url": f"{self.config.duckduckgo_search_url}?q={query}",
                         "snippet": f"No specific instant answers found for '{query}'. You may want to visit DuckDuckGo directly to search for more detailed information.",
                         "source": "DuckDuckGo",
                         "type": "search_suggestion",

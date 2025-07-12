@@ -58,12 +58,12 @@ class AgentMessage:
 class AgentConfig:
     """Configuration for the deep research agent."""
 
-    max_iterations: int = 10
-    timeout: int = 300
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    stream_delay: float = 0.01
-    model: str = "gpt-4-1106-preview"
+    max_iterations: int
+    timeout: int
+    temperature: float
+    max_tokens: int
+    stream_delay: float
+    model: str
 
 
 class LLMClient:
@@ -91,7 +91,7 @@ class LLMClient:
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[ChatCompletion, AsyncGenerator[ChatCompletionChunk, None]]:
         """
         Create a chat completion with the LLM.
@@ -104,8 +104,23 @@ class LLMClient:
 
         Returns:
             ChatCompletion or AsyncGenerator of ChatCompletionChunk.
+
+        Raises:
+            ValueError: If input validation fails.
+            RuntimeError: If API call fails.
+            TimeoutError: If request times out.
         """
         try:
+            # Validate inputs
+            if not messages:
+                raise ValueError("Messages list cannot be empty")
+
+            if not all(isinstance(msg, dict) for msg in messages):
+                raise ValueError("All messages must be dictionaries")
+
+            if not all("role" in msg and "content" in msg for msg in messages):
+                raise ValueError("All messages must have 'role' and 'content' fields")
+
             completion_params = {
                 "model": self.config.llm_model,
                 "messages": messages,
@@ -119,6 +134,7 @@ class LLMClient:
                 completion_params["tools"] = tools
                 completion_params["tool_choice"] = "auto"
 
+            logger.debug(f"Making LLM request with model: {self.config.llm_model}")
             response = await self.client.chat.completions.create(**completion_params)
 
             if stream:
@@ -126,9 +142,18 @@ class LLMClient:
             else:
                 return response
 
-        except Exception as e:
-            logger.error(f"LLM client error: {str(e)}")
+        except ValueError as e:
+            logger.error(f"LLM input validation error: {str(e)}")
             raise
+        except asyncio.TimeoutError as e:
+            logger.error(f"LLM request timeout: {str(e)}")
+            raise TimeoutError(
+                f"LLM request timed out after {self.config.api_timeout} seconds"
+            )
+        except Exception as e:
+            error_type = type(e).__name__
+            logger.error(f"LLM client error [{error_type}]: {str(e)}", exc_info=True)
+            raise RuntimeError(f"LLM API error: {str(e)}")
 
     async def _stream_response(
         self, response: AsyncGenerator[ChatCompletionChunk, None]
@@ -347,11 +372,41 @@ class DeepResearchAgent:
                             metadata={"iteration": iterations},
                         )
 
-                        # Execute the tool
-                        tool_result = await self.tool_registry.execute_tool(
-                            tool_call.function.name,
-                            **json.loads(tool_call.function.arguments),
-                        )
+                        # Execute the tool with error handling
+                        try:
+                            tool_args = json.loads(tool_call.function.arguments)
+                            logger.debug(
+                                f"Executing tool {tool_call.function.name} with args: {tool_args}"
+                            )
+
+                            tool_result = await self.tool_registry.execute_tool(
+                                tool_call.function.name,
+                                **tool_args,
+                            )
+
+                            if not tool_result.success:
+                                logger.warning(
+                                    f"Tool {tool_call.function.name} failed: {tool_result.error}"
+                                )
+
+                        except json.JSONDecodeError as e:
+                            logger.error(
+                                f"Invalid JSON in tool call arguments: {str(e)}"
+                            )
+                            tool_result = ToolResult(
+                                success=False,
+                                data=None,
+                                error=f"Invalid JSON in tool arguments: {str(e)}",
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Tool execution error: {str(e)}", exc_info=True
+                            )
+                            tool_result = ToolResult(
+                                success=False,
+                                data=None,
+                                error=f"Tool execution failed: {str(e)}",
+                            )
 
                         tool_results.append((tool_call.id, tool_result))
 
@@ -401,12 +456,53 @@ class DeepResearchAgent:
                     )
                     break
 
-            except Exception as e:
-                logger.error(f"Agent loop error at iteration {iterations}: {str(e)}")
+            except ValueError as e:
+                logger.error(
+                    f"Agent loop validation error at iteration {iterations}: {str(e)}"
+                )
                 yield AgentEvent(
                     event_type=AgentEventType.ERROR,
-                    data={"error": str(e), "iteration": iterations},
-                    metadata={"recoverable": False},
+                    data={
+                        "error": f"Input validation error: {str(e)}",
+                        "iteration": iterations,
+                    },
+                    metadata={"recoverable": False, "error_type": "validation"},
+                )
+                break
+            except TimeoutError as e:
+                logger.error(f"Agent loop timeout at iteration {iterations}: {str(e)}")
+                yield AgentEvent(
+                    event_type=AgentEventType.ERROR,
+                    data={
+                        "error": f"Request timeout: {str(e)}",
+                        "iteration": iterations,
+                    },
+                    metadata={"recoverable": True, "error_type": "timeout"},
+                )
+                break
+            except RuntimeError as e:
+                logger.error(
+                    f"Agent loop runtime error at iteration {iterations}: {str(e)}"
+                )
+                yield AgentEvent(
+                    event_type=AgentEventType.ERROR,
+                    data={"error": f"Runtime error: {str(e)}", "iteration": iterations},
+                    metadata={"recoverable": False, "error_type": "runtime"},
+                )
+                break
+            except Exception as e:
+                error_type = type(e).__name__
+                logger.error(
+                    f"Agent loop unexpected error at iteration {iterations} [{error_type}]: {str(e)}",
+                    exc_info=True,
+                )
+                yield AgentEvent(
+                    event_type=AgentEventType.ERROR,
+                    data={
+                        "error": f"Unexpected error: {str(e)}",
+                        "iteration": iterations,
+                    },
+                    metadata={"recoverable": False, "error_type": "unexpected"},
                 )
                 break
 
@@ -439,10 +535,28 @@ async def deep_research_agent(
 
     Yields:
         str: Formatted response strings for streaming.
-    """
-    agent = DeepResearchAgent(config, tool_registry)
 
+    Raises:
+        ValueError: If input validation fails.
+        RuntimeError: If agent initialization fails.
+    """
     try:
+        # Validate inputs
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+
+        if not isinstance(enabled_tools, list):
+            raise ValueError("enabled_tools must be a list")
+
+        if not isinstance(deep_research_mode, bool):
+            raise ValueError("deep_research_mode must be a boolean")
+
+        logger.info(
+            f"Starting deep research agent with {len(enabled_tools)} tools, deep_research_mode={deep_research_mode}"
+        )
+
+        agent = DeepResearchAgent(config, tool_registry)
+
         async for event in agent.process_research_request(
             messages, enabled_tools, deep_research_mode
         ):
@@ -450,9 +564,19 @@ async def deep_research_agent(
             if formatted_response:
                 yield formatted_response
 
+    except ValueError as e:
+        logger.error(f"Deep research agent validation error: {str(e)}")
+        yield f"❌ **Validation Error:** {str(e)}"
+    except RuntimeError as e:
+        logger.error(f"Deep research agent runtime error: {str(e)}")
+        yield f"❌ **Runtime Error:** {str(e)}"
     except Exception as e:
-        logger.error(f"Deep research agent error: {str(e)}")
-        yield f"Error: {str(e)}"
+        error_type = type(e).__name__
+        logger.error(
+            f"Deep research agent unexpected error [{error_type}]: {str(e)}",
+            exc_info=True,
+        )
+        yield f"❌ **Unexpected Error:** {str(e)}"
 
 
 def _format_agent_event(event: AgentEvent) -> Optional[str]:

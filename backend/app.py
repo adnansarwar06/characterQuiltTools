@@ -7,6 +7,7 @@ using the modular deep research agent from llm.py for all LLM operations.
 
 import json
 import logging
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
@@ -126,6 +127,35 @@ def create_app() -> FastAPI:
             if not isinstance(tools, list):
                 raise HTTPException(status_code=400, detail="Tools must be a list")
 
+            # Validate tool names against available tools
+            available_tools = list(tool_registry.tool_schemas.keys())
+            invalid_tools = [tool for tool in tools if tool not in available_tools]
+            if invalid_tools:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid tools: {invalid_tools}. Available tools: {available_tools}",
+                )
+
+            # Validate deep_research_mode
+            if not isinstance(deep_research_mode, bool):
+                raise HTTPException(
+                    status_code=400, detail="deep_research_mode must be a boolean"
+                )
+
+            # Validate message content length
+            max_content_length = (
+                config.max_request_size // 4
+            )  # Reserve space for other data
+            for i, message in enumerate(messages):
+                if (
+                    message.get("content")
+                    and len(message["content"]) > max_content_length
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Message {i} content exceeds maximum length of {max_content_length} characters",
+                    )
+
             # Convert messages to the format expected by the agent
             formatted_messages = []
             for msg in messages:
@@ -166,29 +196,59 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/health")
-    async def health_check() -> Dict[str, str]:
+    async def health_check() -> Dict[str, Any]:
         """
-        Health check endpoint.
+        Health check endpoint with enhanced diagnostics.
 
         Returns:
-            Dict[str, str]: Health status.
+            Dict[str, Any]: Health status with diagnostics.
         """
-        return {
-            "status": "healthy",
-            "service": "deep-research-agent",
-            "version": "1.0.0",
-        }
+        try:
+            # Check if tool registry is accessible
+            available_tools = list(tool_registry.tool_schemas.keys())
+
+            # Check if configuration is valid
+            config.validate_config()
+
+            # Return healthy status with diagnostics
+            return {
+                "status": "healthy",
+                "service": "deep-research-agent",
+                "version": "1.0.0",
+                "tools_available": len(available_tools),
+                "model": config.llm_model,
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Health check failed: {str(e)}", exc_info=True)
+            return {
+                "status": "unhealthy",
+                "service": "deep-research-agent",
+                "version": "1.0.0",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
 
     @app.get("/tools")
-    async def list_tools() -> Dict[str, List[str]]:
+    async def list_tools() -> Dict[str, Any]:
         """
         List available tools.
 
         Returns:
-            Dict[str, List[str]]: Available tools and their descriptions.
+            Dict[str, Any]: Available tools and their descriptions.
         """
-        available_tools = list(tool_registry.tool_schemas.keys())
-        return {"available_tools": available_tools, "total_count": len(available_tools)}
+        try:
+            available_tools = list(tool_registry.tool_schemas.keys())
+            return {
+                "available_tools": available_tools,
+                "total_count": len(available_tools),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Failed to list tools: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500, detail=f"Failed to retrieve tool information: {str(e)}"
+            )
 
     @app.get("/config")
     async def get_config() -> Dict[str, Any]:
@@ -208,7 +268,9 @@ def create_app() -> FastAPI:
         }
 
     @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
+    async def global_exception_handler(
+        request: Request, exc: Exception
+    ) -> HTTPException:
         """
         Global exception handler for unhandled exceptions.
 
@@ -217,10 +279,27 @@ def create_app() -> FastAPI:
             exc: The exception that occurred.
 
         Returns:
-            JSONResponse: Error response.
+            HTTPException: Error response.
         """
-        logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
-        return HTTPException(status_code=500, detail="Internal server error")
+        error_id = f"error_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger.error(
+            f"Unhandled exception [{error_id}]: {str(exc)}",
+            exc_info=True,
+            extra={
+                "error_id": error_id,
+                "request_url": str(request.url),
+                "request_method": request.method,
+                "exception_type": type(exc).__name__,
+            },
+        )
+
+        # Return different error messages based on debug mode
+        if config.debug_mode:
+            detail = f"Internal server error [{error_id}]: {str(exc)}"
+        else:
+            detail = f"Internal server error [{error_id}]. Please contact support."
+
+        return HTTPException(status_code=500, detail=detail)
 
     return app
 

@@ -1,15 +1,17 @@
 Summary Report
 
 Weather in New York:
-- Temperature: 24.9 0C
-- Humidity: 81%
-- Weather Conditions: Clear sky
-- Wind Speed: 10.5 km/h
-- Wind Direction: 128 degrees
+- Temperature: 24.3°C
+- Humidity: 83%
+- Weather: Clear sky
+- Wind Speed: 12.1 km/h
+- Wind Direction: 120°
 
 Recent News on Climate Change:
-1. Climate Change | News, Videos & Articles: Comprehensive coverage on climate change, featuring the latest news, videos, and articles.
-2. Climate change: The world just marked a year above a critical limit: A significant milestone in climate change, as the world has surpassed a crucial threshold for a full year.
-3. Climate Change - UN News: United Nations news and updates on global climate change efforts.
+1. Climate Change | News, Videos & Articles - A general source for news and videos about climate change.
+2. Climate change: The world just marked a year above a critical limit of... - This headline suggests a significant milestone has been reached in climate measurements.
+3. Climate Change - UN News - United Nations' updates on climate change.
+4. Climate and Environment - CBC News - CBC News coverage on climate and environment.
+5. Climate Change News and Updates: Stay Up-to-Date on Latest... - A source for staying informed on the latest developments in climate change.
 
-Note: For more details on the news articles, please refer to the provided links.
+Note: The specific content of the news articles has not been provided in this summary.
