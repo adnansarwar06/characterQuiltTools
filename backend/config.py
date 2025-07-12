@@ -65,11 +65,27 @@ class AppConfig:
         self.llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 
         # OpenAI configuration
-        self.openai_api_key: Optional[str] = os.getenv("API_KEY")  # Use existing API_KEY
+        self.openai_api_key: Optional[str] = os.getenv(
+            "API_KEY"
+        )  # Use existing API_KEY
         self.openai_base_url: Optional[str] = os.getenv("OPENAI_BASE_URL")
 
+        # External API URLs configuration
+        self.duckduckgo_api_url: str = os.getenv(
+            "DUCKDUCKGO_API_URL", "https://api.duckduckgo.com/"
+        )
+        self.duckduckgo_search_url: str = os.getenv(
+            "DUCKDUCKGO_SEARCH_URL", "https://html.duckduckgo.com/html/"
+        )
+        self.openmeteo_geocoding_url: str = os.getenv(
+            "OPENMETEO_GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search"
+        )
+        self.openmeteo_weather_url: str = os.getenv(
+            "OPENMETEO_WEATHER_URL", "https://api.open-meteo.com/v1/forecast"
+        )
+
         # File operations configuration
-        self.file_output_dir: str = os.getenv("FILE_OUTPUT_DIR", "/tmp/research_agent")
+        self.file_output_dir: str = os.getenv("FILE_OUTPUT_DIR", "./output")
         self.max_file_size: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
 
         # Database configuration (for future use)

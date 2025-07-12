@@ -1,184 +1,255 @@
-# Deep Research Agent Backend
+# Deep Research Agent - Production-Ready Backend
 
-A FastAPI backend for the deep research agent project that provides streaming chat responses.
+A modular, production-ready deep research agent system built with FastAPI, featuring dynamic tool execution, streaming responses, and clean architecture.
 
-## Features
+## 🏗️ Architecture
 
-- **Streaming Chat API**: `/chat` endpoint that streams responses character by character
-- **Configuration Management**: Environment-based configuration using `.env` files
-- **CORS Support**: Configurable CORS for frontend integration
-- **Health Check**: `/health` endpoint for monitoring
-- **Professional Code**: Type annotations, docstrings, and black formatting
+The system is built with clean separation of concerns:
 
-## Quick Start
+- **`llm.py`** - Core agent loop, LLM client, and streaming logic
+- **`tools.py`** - Tool registry and execution system
+- **`config.py`** - Configuration management
+- **`app.py`** - FastAPI application and API endpoints
+- **`test_agent.py`** - Test suite and development utilities
 
-### 1. Install Dependencies
+## 🚀 Features
 
-```bash
-cd backend
-pip install -r requirements.txt
-```
+- **Production-Ready**: Type annotations, logging, error handling, and documentation
+- **Modular Design**: Clean separation between LLM, tools, and API layers
+- **Streaming Support**: Real-time response streaming with tool execution updates
+- **Dynamic Tool Loading**: Tools are loaded dynamically from the registry
+- **Configuration Management**: Environment-based configuration with validation
+- **Multi-Provider Support**: Extensible LLM client (OpenAI, with examples for others)
+- **Comprehensive Testing**: Full test suite with interactive mode
 
-### 2. Configure Environment
+## 📦 Installation
 
-Create a `.env` file in the backend directory:
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-# Server Configuration
-APP_HOST=localhost
-APP_PORT=8000
-DEBUG_MODE=true
+2. **Configure Environment**:
+   ```bash
+   cp environment.env.example environment.env
+   # Edit environment.env and add your API_KEY
+   ```
 
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+3. **Run the Application**:
+   ```bash
+   python run.py
+   ```
 
-# API Configuration
-API_TIMEOUT=30
-MAX_REQUEST_SIZE=1048576
+## 🔧 Configuration
 
-# Streaming Configuration
-STREAMING_DELAY=0.05
+Edit `environment.env` to configure the system:
 
-# Logging Configuration
-LOG_LEVEL=INFO
+```env
+# Required
+API_KEY=your_openai_api_key_here
 
-# Research Agent Configuration
-MAX_RESEARCH_ITERATIONS=10
-RESEARCH_TIMEOUT=300
-
-# Tool Configuration
-AVAILABLE_TOOLS=web_search,code_analysis,document_search
-
-# LLM Configuration
-LLM_MODEL=gpt-4
+# Optional
+LLM_MODEL=gpt-4-1106-preview
 LLM_TEMPERATURE=0.7
-LLM_MAX_TOKENS=4096
-
-# Security Configuration
-SECRET_KEY=your-secret-key-here
-# API_KEY=your-api-key-here
-
-# Rate Limiting Configuration
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=3600
+MAX_RESEARCH_ITERATIONS=10
+AVAILABLE_TOOLS=web_search,file_write,weather
 ```
 
-### 3. Run the Server
+## 🧪 Testing
 
+### Run All Tests:
 ```bash
-# Option 1: Using uvicorn directly
-uvicorn app:app --host localhost --port 8000 --reload
-
-# Option 2: Using Python
-python app.py
+python test_agent.py
 ```
 
-### 4. Test the API
-
+### Interactive Testing:
 ```bash
-# Health check
-curl http://localhost:8000/health
-
-# Chat endpoint
-curl -X POST "http://localhost:8000/chat" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "messages": [
-         {"role": "user", "content": "Hello, how are you?"},
-         {"role": "assistant", "content": "I am doing well, thank you!"},
-         {"role": "user", "content": "Can you help me with research?"}
-       ],
-       "tools": ["web_search", "code_analysis"],
-       "deep_research_mode": true
-     }'
+python test_agent.py interactive
 ```
 
-## API Endpoints
+### Test Individual Components:
+```python
+from config import AppConfig
+from tools import get_tool_registry
+from llm import deep_research_agent
 
-### POST `/chat`
+# Your test code here
+```
 
-Streams a dummy response for chat messages.
+## 🛠️ Usage
 
-**Request Body:**
+### API Endpoints
+
+- **POST `/chat`** - Main chat endpoint with streaming
+- **GET `/health`** - Health check
+- **GET `/tools`** - List available tools
+- **GET `/config`** - Get configuration (non-sensitive)
+
+### Chat Request Format:
 ```json
 {
   "messages": [
-    {"role": "user", "content": "Your message here"}
+    {"role": "user", "content": "What's the weather like in Paris?"}
   ],
-  "tools": ["web_search", "code_analysis"],
+  "tools": ["weather", "web_search"],
   "deep_research_mode": true
 }
 ```
 
-**Response:**
-- Content-Type: `text/plain`
-- Streaming response with character-by-character output
+### Programmatic Usage:
+```python
+from llm import deep_research_agent
+from config import AppConfig
+from tools import get_tool_registry
 
-### GET `/health`
+config = AppConfig()
+tool_registry = get_tool_registry(config)
 
-Returns health status of the API.
+messages = [{"role": "user", "content": "Research AI trends"}]
 
-**Response:**
-```json
-{
-  "status": "healthy"
-}
+async for chunk in deep_research_agent(
+    messages=messages,
+    enabled_tools=["web_search"],
+    deep_research_mode=True,
+    config=config,
+    tool_registry=tool_registry
+):
+    print(chunk, end="", flush=True)
 ```
 
-## Configuration
+## 🔌 Available Tools
 
-All configuration is managed through environment variables or `.env` files. See `config.py` for available options.
+- **`web_search`** - Search the web using DuckDuckGo
+- **`file_write`** - Write content to files
+- **`weather`** - Get weather information
 
-Key configuration options:
-- `APP_HOST`: Server host (default: localhost)
-- `APP_PORT`: Server port (default: 8000)
-- `DEBUG_MODE`: Enable debug mode (default: false)
-- `ALLOWED_ORIGINS`: CORS allowed origins
-- `STREAMING_DELAY`: Delay between characters in streaming (default: 0.05)
+## 🧩 Extending the System
 
-## Project Structure
+### Adding New Tools:
 
+1. **Register the Tool** in `tools.py`:
+   ```python
+   def my_custom_tool(self, param1: str, param2: int) -> ToolResult:
+       # Implementation
+       return ToolResult(success=True, data=result)
+   
+   # In _register_builtin_tools():
+   self.register_tool("my_tool", self.my_custom_tool, schema)
+   ```
+
+2. **Add to Configuration**:
+   ```env
+   AVAILABLE_TOOLS=web_search,file_write,weather,my_tool
+   ```
+
+### Adding New LLM Providers:
+
+The system is designed to support multiple LLM providers. Examples:
+
+```python
+# Ollama Integration
+from ollama import AsyncClient
+
+class OllamaLLMClient(LLMClient):
+    def __init__(self, config):
+        self.client = AsyncClient(host=config.ollama_host)
+    
+    async def create_chat_completion(self, **kwargs):
+        # Implementation for Ollama
+        pass
+
+# Anthropic Integration
+from anthropic import AsyncAnthropic
+
+class AnthropicLLMClient(LLMClient):
+    def __init__(self, config):
+        self.client = AsyncAnthropic(api_key=config.anthropic_api_key)
 ```
-backend/
-├── app.py              # Main FastAPI application
-├── config.py           # Configuration management
-├── requirements.txt    # Python dependencies
-├── __init__.py         # Package initialization
-└── README.md          # This file
-```
 
-## Development
+## 🏃‍♂️ Development
 
-### Code Formatting
+### Code Quality:
+- All code is formatted with `black`
+- Type hints throughout
+- Comprehensive docstrings
+- Error handling and logging
 
-The code is formatted using `black`:
-
+### Running Development Server:
 ```bash
-black app.py config.py
+python run.py
 ```
 
-### Type Checking
-
-The code includes type annotations for better development experience:
-
+### Running Tests:
 ```bash
-mypy app.py config.py
+python test_agent.py
 ```
 
-## Future Enhancements
+## 🚀 Production Deployment
 
-The backend is designed to be easily extensible:
+### Using Uvicorn:
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
 
-- **LLM Integration**: Add actual language model calls
-- **Tool System**: Implement research tools (web search, code analysis, etc.)
-- **Database**: Add persistence for chat history
-- **Authentication**: Add user authentication and authorization
-- **Rate Limiting**: Implement request rate limiting
-- **Monitoring**: Add metrics and logging
+### Using Gunicorn:
+```bash
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app
+```
 
-## Notes
+### Docker:
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+```
 
-- This is a prototype implementation with dummy responses
-- The streaming response simulates real-time communication
-- Configuration is centralized in `config.py` to avoid hardcoded values
-- All functions include proper docstrings and type annotations 
+## 🔐 Security
+
+- API keys loaded from environment variables
+- Input validation on all endpoints
+- Rate limiting ready (configured in environment)
+- File operations restricted to safe directories
+
+## 📚 API Documentation
+
+Start the server and visit:
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+
+## 🐛 Troubleshooting
+
+### Common Issues:
+
+1. **Missing API Key**:
+   ```
+   ValueError: OpenAI API key is required
+   ```
+   Solution: Set `API_KEY` in `environment.env`
+
+2. **Import Errors**:
+   ```
+   ModuleNotFoundError: No module named 'openai'
+   ```
+   Solution: `pip install -r requirements.txt`
+
+3. **Port Already in Use**:
+   ```
+   Error: Port 8000 is already in use
+   ```
+   Solution: Change `APP_PORT` in `environment.env`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `python test_agent.py`
+5. Format code: `python -m black .`
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License. 

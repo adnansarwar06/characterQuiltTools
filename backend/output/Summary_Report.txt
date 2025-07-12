@@ -1,0 +1,15 @@
+Summary Report
+
+Weather in New York:
+- Temperature: 24.9 0C
+- Humidity: 81%
+- Weather Conditions: Clear sky
+- Wind Speed: 10.5 km/h
+- Wind Direction: 128 degrees
+
+Recent News on Climate Change:
+1. Climate Change | News, Videos & Articles: Comprehensive coverage on climate change, featuring the latest news, videos, and articles.
+2. Climate change: The world just marked a year above a critical limit: A significant milestone in climate change, as the world has surpassed a crucial threshold for a full year.
+3. Climate Change - UN News: United Nations news and updates on global climate change efforts.
+
+Note: For more details on the news articles, please refer to the provided links.

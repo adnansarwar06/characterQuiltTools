@@ -22,16 +22,16 @@ def main():
     try:
         # Load configuration
         config = AppConfig()
-        
+
         # Validate configuration
         config.validate_config()
-        
+
         print(f"Starting Deep Research Agent Backend...")
         print(f"Configuration: {config}")
         print(f"Server will be available at: http://{config.host}:{config.port}")
         print(f"API docs available at: http://{config.host}:{config.port}/docs")
         print(f"Health check at: http://{config.host}:{config.port}/health")
-        
+
         # Start the server
         uvicorn.run(
             "app:app",
@@ -41,7 +41,7 @@ def main():
             log_level=config.log_level.lower(),
             access_log=config.debug_mode,
         )
-        
+
     except KeyboardInterrupt:
         print("\nShutting down server...")
     except Exception as e:
@@ -50,4 +50,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
